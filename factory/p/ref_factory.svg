@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <rect width="400" height="300" fill="#dfe8ec"/>
+  <rect y="214" width="400" height="86" fill="#c9cec8"/>
+  <path d="M40 214V128l60-34v34l60-34v34l60-34v34l60-34v120z" fill="#22394a"/>
+  <rect x="290" y="70" width="18" height="144" fill="#3d464d"/>
+  <rect x="320" y="96" width="14" height="118" fill="#3d464d"/>
+  <rect x="58" y="160" width="34" height="54" fill="#f2b705"/>
+  <rect x="118" y="160" width="34" height="54" fill="#f2b705"/>
+  <rect x="178" y="160" width="34" height="54" fill="#f2b705"/>
+  <rect x="238" y="168" width="22" height="16" fill="#dfe8ec"/>
+  <rect x="0" y="0" width="400" height="46" fill="rgba(0,0,0,.72)"/>
+  <text x="200" y="30" text-anchor="middle" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="21" font-weight="700" fill="#ffffff">참고 이미지 · 실제 매물 사진 아님</text>
+</svg>
