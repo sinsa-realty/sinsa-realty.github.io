@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>전국 매물지도</title>
+<meta name="description" content="공장·창고, 시골집·전원주택, 토지, 빌딩·상가주택, 경매 매물을 지도에서 찾고 바로 전화 문의하세요.">
+<meta property="og:title" content="전국 매물지도"><meta property="og:description" content="공장·시골집·토지·빌딩·경매 매물을 지도로">
+<meta name="theme-color" content="#1f4e5f">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="assets/app.css">
+</head><body>
+<main class="hub">
+  <div class="hub-top"><h1 id="brand">전국 매물지도</h1><a class="tb-call" id="hubcall" href="#"><span>☎ 전화</span></a></div>
+  <section class="hub-hero">
+    <h2>지도에서 찾고,<br>바로 전화하세요</h2>
+    <p>공장·창고부터 시골집, 땅, 꼬마빌딩, 경매까지 전국 매물을 한곳에서</p>
+    <div class="stat" id="stat"></div>
+  </section>
+  <nav class="tiles" id="tiles" aria-label="매물 종류"></nav>
+  <section class="hsec"><h3>영상으로 보는 추천 매물</h3><div class="hrow" id="picks"></div></section>
+  <p class="foot">매물 정보는 등록 당시 기준이며 현장 사정에 따라 달라질 수 있습니다. 위치는 읍·면까지만 안내하며 정확한 위치는 상담 시 알려 드립니다.</p>
+</main>
+<nav class="bar">
+  <a class="btn call" id="callbtn" href="#"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg><span class="lbl">전화하기</span><span class="ph num" id="callno"></span></a>
+  <a class="btn sms" id="smsbtn" href="#">문자</a>
+  <a class="btn kakao" id="kakaobtn" href="#" target="_blank" rel="noopener">카톡</a>
+</nav>
+<script src="assets/config.js"></script>
+<script>
+(function(){
+  const C=window.MAEMUL_CONFIG, P=C.phones.owner, D=P.replace(/[^0-9]/g,"");
+  const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  document.getElementById("brand").textContent=C.brand;
+  for(const id of ["callbtn","hubcall"]) document.getElementById(id).href="tel:"+D;
+  document.getElementById("callno").textContent=P;
+  document.getElementById("smsbtn").href="sms:"+D;
+  document.getElementById("kakaobtn").href=C.kakaoChannel;
+  const won=v=>{v=Math.round(v);const e=Math.floor(v/1e4),r=v%1e4;return (e?e+"억":"")+(r?(e?" ":"")+r.toLocaleString("ko-KR")+"만":"")+"원";};
+  fetch("data/summary.json").then(r=>r.json()).then(S=>{
+    const keys=Object.keys(C.sites), total=keys.reduce((a,k)=>a+(S[k]?.n||0),0);
+    document.getElementById("stat").innerHTML=`<div><b>${total}</b><span>전체 매물</span></div><div><b>${S.auction?.n||0}</b><span>진행 중 경매</span></div><div><b>17</b><span>시·도</span></div>`;
+    document.getElementById("tiles").innerHTML=keys.map(k=>{const v=C.sites[k],s=S[k]||{};
+      return `<a class="tile" href="${k}/" style="--c:${v.color}">${s.cover?`<img src="https://i.ytimg.com/vi/${s.cover}/hqdefault.jpg" alt="">`:""}<div><b>${esc(v.name)}</b><span>${s.n||0}건 · 지도로 보기 →</span></div></a>`;}).join("");
+    const picks=keys.flatMap(k=>(S[k]?.picks||[]).filter(m=>m.yt).map(m=>({...m,k})));
+    document.getElementById("picks").innerHTML=picks.map(m=>`<a class="card" href="${m.k}/#" data-id="${esc(m.id)}">
+      <div class="photo"><img loading="lazy" src="https://i.ytimg.com/vi/${m.yt}/hqdefault.jpg" alt=""><div class="badges"><span class="bd pick">추천</span>${m.low!=null?'<span class="bd auc">경매</span>':''}<span class="bd vid">▶ 영상</span></div></div>
+      <div class="cbody"><div class="cprice num">${m.low!=null?"최저 "+won(m.low):m.sale!=null?won(m.sale):"월 "+m.rent+"만"}</div><div class="cmeta">${esc(m.sido+" "+m.sigun+" "+m.dong)}</div><div class="ckind">${esc(C.sites[m.k].name)} · ${esc(m.kind)}</div></div></a>`).join("");
+    // 추천 카드는 해당 사이트의 그 매물로 바로 이동
+    Promise.all([...new Set(picks.map(p=>p.k))].map(k=>fetch(`data/${k}.json`).then(r=>r.json()).then(L=>[k,L]))).then(all=>{
+      const idx={}; all.forEach(([k,L])=>L.forEach((m,i)=>idx[k+"|"+m.id]=i));
+      document.querySelectorAll("#picks .card").forEach((a,j)=>{const p=picks[j]; const i=idx[p.k+"|"+p.id]; if(i!=null) a.href=`${p.k}/#${i}`;});
+    });
+  });
+})();
+</script>
+</body></html>

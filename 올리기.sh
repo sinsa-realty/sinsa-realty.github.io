@@ -5,6 +5,7 @@
 #   pension  ← C:\Users\smfqh\펜션매매\사이트
 #   factory  ← C:\Users\smfqh\공장매매\사이트
 #   building ← C:\Users\smfqh\빌딩매매\사이트
+# map/(시골집·토지·경매·상가주택·종합) 은 11/7 아티팩트에서 가져온 고정 폴더 — 이 스크립트가 지우지 않음
 # 장부·전화번호·주소 원본은 절대 여기 넣지 않음(공개됨)
 set -e
 cd "$(dirname "$0")"
