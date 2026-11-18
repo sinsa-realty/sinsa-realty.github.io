@@ -79,7 +79,7 @@
   }
   // ② 그 밖(주택·토지·경매 등): 카카오 위성사진으로 주변 모습(정확한 지번이 아니라 근처)
   const illHTML = (m) => m.lat != null
-    ? `<div class="ill" data-sm="${m.lat},${m.lng}" style="position:relative;overflow:hidden">${kindIcon(m)}<small>위성사진(주변)</small></div>`
+    ? `<div class="ill" data-sm="${m.lat},${m.lng}" style="position:absolute;inset:0;overflow:hidden">${kindIcon(m)}<small>위성사진(주변)</small></div>`
     : `<div class="ill">${kindIcon(m)}<small>사진 준비 중</small></div>`;
   const sampHTML = (m, src) => `<img loading="lazy" src="${src}" alt="${esc(m.kind)} 예시 사진(실제 매물 아님)" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ill',innerHTML:'<small>사진 준비 중</small>'}))">`;
   const noPhoto = (m) => (sampleOf(m) ? sampHTML(m, sampleOf(m)) : illHTML(m));
