@@ -22,6 +22,10 @@ python -I /c/Users/smfqh/지도자료/도구/종합지도_사진상세적용.py 
 python -I /c/Users/smfqh/지도자료/도구/카카오적용.py factory/index.html pension/index.html building/index.html
 # 공개 전 점검: 휴대폰 번호가 들어가면 멈춤
 if grep -rlE "01[016789]-?[0-9]{3,4}-?[0-9]{4}" --include=*.html --include=*.json . ; then echo "휴대폰 번호 발견 — 올리지 않음"; exit 1; fi
+# 용량 점검: GitHub Pages 한도 1GB(공개 사이트), 저장소 권장 1GB. 700MB 넘으면 경고 → 협업지침 8장(클라우드플레어 이전) 따름
+SZ=$(du -sm --exclude=.git . | cut -f1); NF=$(find . -path ./.git -prune -o -type f -print | wc -l)
+echo "사이트 용량 ${SZ}MB / 1024MB · 파일 ${NF}개"
+[ "$SZ" -gt 700 ] && echo "⚠ 용량 700MB 넘음 — 협업지침 8장대로 사진 압축 또는 Cloudflare Pages 이전 준비"
 git add -A
 git commit -q -m "${1:-사이트 갱신}" || { echo "바뀐 것 없음"; exit 0; }
 git push -q
