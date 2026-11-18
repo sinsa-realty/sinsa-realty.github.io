@@ -64,7 +64,7 @@
   };
   const kindIcon = (m) => ICON[/공장|창고/.test(m.kind) ? "factory" : /대지|농지|과수원|토지|주차장/.test(m.kind) ? "land" : /상가|근생|근린|빌딩|건물|아파트/.test(m.kind) ? "building" : /주택|단독|다가구|시골/.test(m.kind) ? "house" : SITE];
   const vok = (m, k) => !!m[k] && (!m[k + "At"] || new Date(m[k + "At"]) <= new Date());
-  const thImg = (m) => m.th ? `<img loading="lazy" src="/map/p/${encodeURIComponent(m.th)}" alt="${esc(place(m))} ${esc(m.kind)}">` : "";
+  const thImg = (m) => m.th ? `${m.thx ? '<span style="position:absolute;right:3px;bottom:3px;z-index:2;background:rgba(0,0,0,.4);color:#fff;padding:0 3px;border-radius:2px;font-size:8px;line-height:12px">예시 사진</span>' : ""}<img loading="lazy" src="/map/p/${encodeURIComponent(m.th)}" alt="${esc(place(m))} ${esc(m.kind)}${m.thx ? " 예시 사진" : ""}">` : "";
   // ── 사진 없는 매물 (Code 세션 2026-11-19) ──
   // ① 공장·창고·상가·빌딩형: 공장·빌딩 사이트의 AI 예시 사진(구석에 '예시'), 매물번호로 골라 매물마다 다르게
   const SAMP = {
