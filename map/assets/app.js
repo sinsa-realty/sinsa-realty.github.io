@@ -81,7 +81,7 @@
   const illHTML = (m) => m.lat != null
     ? `<div class="ill" data-sm="${m.lat},${m.lng}" style="position:absolute;inset:0;overflow:hidden">${kindIcon(m)}<small>위성사진(주변)</small></div>`
     : `<div class="ill">${kindIcon(m)}<small>사진 준비 중</small></div>`;
-  const sampHTML = (m, src) => `<img loading="lazy" src="${src}" alt="${esc(m.kind)} 예시 사진(실제 매물 아님)" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ill',innerHTML:'<small>사진 준비 중</small>'}))">`;
+  const sampHTML = (m, src) => `<span style="position:absolute;right:6px;bottom:6px;z-index:2;background:rgba(0,0,0,.55);color:#fff;padding:1px 6px;border-radius:4px;font-size:11px">예시 사진</span><img loading="lazy" src="${src}" alt="${esc(m.kind)} 예시 사진(실제 매물 아님)" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ill',innerHTML:'<small>사진 준비 중</small>'}))">`;
   const noPhoto = (m) => (sampleOf(m) ? sampHTML(m, sampleOf(m)) : illHTML(m));
   function paintSM(el) {
     if (el.dataset.done || !(window.kakao && kakao.maps && kakao.maps.StaticMap)) return;
