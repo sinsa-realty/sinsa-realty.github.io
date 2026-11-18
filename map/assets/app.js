@@ -63,6 +63,19 @@
     auction: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3"><path d="m22 10 18 18M14 18l18 18M18 14l18 18M30 26 54 50"/><path d="M8 58h26"/></svg>',
   };
   const kindIcon = (m) => ICON[/공장|창고/.test(m.kind) ? "factory" : /대지|농지|과수원|토지|주차장/.test(m.kind) ? "land" : /상가|근생|근린|빌딩|건물|아파트/.test(m.kind) ? "building" : /주택|단독|다가구|시골/.test(m.kind) ? "house" : SITE];
+  // 사진 없는 매물: 종류에 맞는 예시 사진(공장·빌딩 사이트의 AI 예시 사진, 구석에 '예시' 표시). 매물번호로 골라 매물마다 다르게
+  const SAMP = {
+    fac: "fac_a fac_b fac_c fac_d".split(" ").flatMap(k => [0,1,2,3,4,5].map(i => `../../factory/p/g_${k}${i}.jpg`)),
+    wh: [0,1,2,3,4,5].map(i => `../../factory/p/g_wh_a${i}.jpg`),
+    bld: "brick_remodel kobi_new local_corner retail_mid medical office_mid".split(" ").flatMap(k => [0,1,2,3,4,5,6,7].map(i => `../../building/p/b_${k}${i}.jpg`)),
+  };
+  const hashN = (t) => { let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+  function sampleOf(m) {
+    const k = /창고/.test(m.kind) ? "wh" : /공장/.test(m.kind) ? "fac" : /상가|근생|근린시설|빌딩|건물|다가구|아파트/.test(m.kind) ? "bld" : null;
+    return k ? SAMP[k][hashN(m.id) % SAMP[k].length] : null;
+  }
+  const illHTML = (m) => `<div class="ill">${kindIcon(m)}<small>사진 준비 중</small></div>`;
+  const sampHTML = (m, s) => `<img loading="lazy" src="${s}" alt="${esc(m.kind)} 예시 사진(실제 매물 아님)" onerror="this.outerHTML='<div class=&quot;ill&quot;><small>사진 준비 중</small></div>'">`;
   function photoHTML(m) {
     const b = [];
     if (m.pick) b.push('<span class="bd pick">추천</span>');
@@ -72,7 +85,7 @@
     if ((m.tags || []).includes("지상권")) b.push('<span class="bd jsg">지상권</span>');
     if (m.yt) b.push('<span class="bd vid">▶ 영상</span>');
     const img = m.yt ? `<img loading="lazy" src="https://i.ytimg.com/vi/${m.yt}/hqdefault.jpg" alt="${esc(place(m))} ${esc(m.kind)} 영상 장면">`
-      : `<div class="ill">${kindIcon(m)}<small>사진 준비 중</small></div>`;
+      : sampleOf(m) ? sampHTML(m, sampleOf(m)) : illHTML(m);
     return `<div class="photo">${img}<div class="badges">${b.join("")}</div></div>`;
   }
   const cardHTML = (m) => `${photoHTML(m)}<div class="cbody"><div class="cprice num">${priceHTML(m)}</div>
@@ -284,7 +297,7 @@
     if (SITE === "factory") rows.push(["전력", null], ["층고", null], ["호이스트", null], ["진입로", null]);
     if (SITE === "land") rows.push(["지목", null], ["용도지역", null], ["도로", null]);
     const hero = m.yt ? `<img src="https://i.ytimg.com/vi/${m.yt}/hqdefault.jpg" alt="${esc(place(m))} 영상 장면"><a class="play" href="https://youtu.be/${m.yt}" target="_blank" rel="noopener">▶ 영상으로 보기</a>`
-      : `<div class="photo" style="aspect-ratio:auto;height:100%"><div class="ill">${kindIcon(m)}<small>사진 준비 중</small></div></div>`;
+      : `<div class="photo" style="aspect-ratio:auto;height:100%">${sampleOf(m) ? sampHTML(m, sampleOf(m)) : illHTML(m)}</div>`;
     D.innerHTML = `
       <div class="d-top"><button type="button" id="dback" aria-label="뒤로">←</button><button type="button" id="dshare" aria-label="링크 복사">⤴</button></div>
       <div class="d-hero">${hero}</div>
