@@ -9,7 +9,7 @@ window.MAEMUL_CONFIG = {
   },
   kakaoChannel: "https://pf.kakao.com/_pxixcJxj/chat",   // 반값급매TV 1:1 문의
   // 카카오맵 JavaScript 키 — 받으면 여기에 넣습니다. 넣으면 카카오 지도·스카이뷰(위성)·지적편집도로 바뀝니다.
-  kakaoKey: "",
+  kakaoKey: "65ba3376b8642d2080e2ded313e5f828",
   sites: {
     factory:  { name: "공장·창고",       full: "전국 공장·창고",       phone: "owner", color: "#1f4e5f", accent: "#f2a900", icon: "factory" },
     house:    { name: "시골집·전원주택", full: "전국 시골집·전원주택", phone: "staff", color: "#2f5d3a", accent: "#f2a900", icon: "house" },
