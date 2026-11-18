@@ -509,14 +509,14 @@ function KMap(el){
     ctl.querySelectorAll('[data-t=map],[data-t=sat]').forEach(x=>x.setAttribute('aria-pressed',x===b));
     m.setMapTypeId(t==='sat'?K.MapTypeId.HYBRID:K.MapTypeId.ROADMAP); };
   el.append(ctl);
-  const st=document.createElement('style'); st.textContent='.kmt{position:absolute;left:10px;top:10px;z-index:4;display:flex;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.25);overflow:hidden}.kmt button{border:0;background:#fff;padding:7px 11px;font:600 13px/1 inherit;color:#333;cursor:pointer}.kmt button[aria-pressed=true]{background:#1f2937;color:#fff}#map .mk{z-index:3}';
+  const st=document.createElement('style'); st.textContent='.kmt{position:absolute;right:58px;top:10px;z-index:4;display:flex;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.25);overflow:hidden}.kmt button{border:0;background:#fff;padding:7px 11px;font:600 13px/1 inherit;color:#333;cursor:pointer}.kmt button[aria-pressed=true]{background:#1f2937;color:#fff}#map .mk{z-index:3}';
   document.head.append(st);
   return { __k:m,
     getZoom:()=>Z(m.getLevel()),
     getBounds:()=>{ const b=m.getBounds(), sw=b.getSouthWest(), ne=b.getNorthEast(); return {getWest:()=>sw.getLng(),getEast:()=>ne.getLng(),getSouth:()=>sw.getLat(),getNorth:()=>ne.getLat()}; },
     project:ll=>{ const p=m.getProjection().containerPointFromCoords(L(ll[1],ll[0])); return {x:p.x,y:p.y}; },
     unproject:p=>{ const c=m.getProjection().coordsFromContainerPoint(new K.Point(p[0],p[1])); return {lng:c.getLng(),lat:c.getLat()}; },
-    fitBounds:(b,o={})=>{ const p=o.padding||{}; m.setBounds(box(b),p.top||0,p.right||0,p.bottom||0,p.left||0); if(o.maxZoom!=null&&m.getLevel()<LV(o.maxZoom)) m.setLevel(LV(o.maxZoom)); },
+    fitBounds:(b,o={})=>{ const p=o.padding||{}; const bx=box(b); m.setBounds(bx,p.top||0,p.right||0,p.bottom||0,p.left||0); /* 카카오는 단계가 굵어 한 단계 더 가까이(전국 제외) */ if(Array.isArray(b)&&b[0][0]>125.5&&m.getLevel()>1) m.setLevel(m.getLevel()-1); if(o.maxZoom!=null&&m.getLevel()<LV(o.maxZoom)) m.setLevel(LV(o.maxZoom)); },
     easeTo:o=>{ if(o.center) m.setCenter(L(o.center.lat,o.center.lng)); if(o.zoom!=null) m.setLevel(LV(o.zoom),{animate:true}); },
     zoomIn:()=>m.setLevel(Math.max(1,m.getLevel()-1),{animate:true}), zoomOut:()=>m.setLevel(Math.min(13,m.getLevel()+1),{animate:true}),
     on, once:on, resize:()=>m.relayout(), isStyleLoaded:()=>false, getSource:()=>null, getStyle:()=>null, setStyle:()=>{},
