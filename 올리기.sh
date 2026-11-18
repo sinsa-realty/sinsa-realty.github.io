@@ -14,6 +14,8 @@ copy /c/Users/smfqh/펜션매매/사이트 pension
 find pension/p -name '*_h[3-9].jpg' -delete
 copy /c/Users/smfqh/공장매매/사이트 factory
 copy /c/Users/smfqh/빌딩매매/사이트 building
+# 원본 폴더에 없고 아티팩트에만 있던 사진(당근 매물 사진 등)을 덧붙임 — 같은 이름이 있으면 원본 우선
+for d in factory pension building; do [ -d ../추가사진/$d/p ] && cp -rn ../추가사진/$d/p/. $d/p/ ; done
 # 공개본에만 카카오 지도 넣기(키는 map/assets/config.js, 원본은 그대로)
 python -I /c/Users/smfqh/지도자료/도구/카카오적용.py factory/index.html pension/index.html building/index.html
 # 공개 전 점검: 휴대폰 번호가 들어가면 멈춤
