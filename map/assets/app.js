@@ -28,7 +28,7 @@
     building: { segs: [["전체"], ["상가주택", (m) => /상가주택|다가구/.test(m.kind)], ["꼬마빌딩", (m) => /근생|꼬마|건물/.test(m.kind) && !/상가주택/.test(m.kind)], ["구분상가", (m) => /상가\(구분\)|근린상가/.test(m.kind)], ["경매", (m) => m.low != null]],
       price: [["7억 이하", 0, 7 * M], ["7~10억", 7 * M, 10 * M], ["10~15억", 10 * M, 15 * M], ["15억 넘게", 15 * M, 1e12]],
       areaKey: "bld", areaName: "건물", area: [["50평 이하", 0, 50], ["50~100평", 50, 100], ["100평 넘게", 100, 1e9]] },
-    auction: { segs: [["전체"], ["주택", (m) => /주택|단독|다가구/.test(m.kind)], ["토지", (m) => /대지|농지|과수원|주차장/.test(m.kind)], ["상가·건물", (m) => /근린|상가|아파트$/.test(m.kind)], ["공장·창고", (m) => /공장|창고/.test(m.kind)], ["추천", (m) => m.judge === "추천"]],
+    auction: { segs: [["전체"], ["주택", (m) => /주택|단독|다가구/.test(m.kind)], ["토지", (m) => /대지|농지|과수원|주차장/.test(m.kind)], ["상가·건물", (m) => /근린|상가|지식산업|숙박|다가구|건물/.test(m.kind)], ["아파트·빌라", (m) => /아파트|빌라|오피스텔/.test(m.kind)], ["공장·창고", (m) => /공장|창고/.test(m.kind)], ["추천", (m) => m.judge === "추천"]],
       price: [["5천만 이하", 0, 5000], ["5천~1억", 5000, M], ["1~3억", M, 3 * M], ["3억 넘게", 3 * M, 1e12]],
       areaKey: "land", areaName: "토지", area: [["100평 이하", 0, 100], ["100~300평", 100, 300], ["300평 넘게", 300, 1e9]] },
   };
@@ -63,19 +63,39 @@
     auction: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3"><path d="m22 10 18 18M14 18l18 18M18 14l18 18M30 26 54 50"/><path d="M8 58h26"/></svg>',
   };
   const kindIcon = (m) => ICON[/공장|창고/.test(m.kind) ? "factory" : /대지|농지|과수원|토지|주차장/.test(m.kind) ? "land" : /상가|근생|근린|빌딩|건물|아파트/.test(m.kind) ? "building" : /주택|단독|다가구|시골/.test(m.kind) ? "house" : SITE];
-  // 사진 없는 매물: 종류에 맞는 예시 사진(공장·빌딩 사이트의 AI 예시 사진, 구석에 '예시' 표시). 매물번호로 골라 매물마다 다르게
+  const vok = (m, k) => !!m[k] && (!m[k + "At"] || new Date(m[k + "At"]) <= new Date());
+  const thImg = (m) => m.th ? `<img loading="lazy" src="/map/p/${encodeURIComponent(m.th)}" alt="${esc(place(m))} ${esc(m.kind)}">` : "";
+  // ── 사진 없는 매물 (Code 세션 2026-11-19) ──
+  // ① 공장·창고·상가·빌딩형: 공장·빌딩 사이트의 AI 예시 사진(구석에 '예시'), 매물번호로 골라 매물마다 다르게
   const SAMP = {
-    fac: "fac_a fac_b fac_c fac_d".split(" ").flatMap(k => [0,1,2,3,4,5].map(i => `../../factory/p/g_${k}${i}.jpg`)),
-    wh: [0,1,2,3,4,5].map(i => `../../factory/p/g_wh_a${i}.jpg`),
-    bld: "brick_remodel kobi_new local_corner retail_mid medical office_mid".split(" ").flatMap(k => [0,1,2,3,4,5,6,7].map(i => `../../building/p/b_${k}${i}.jpg`)),
+    fac: "fac_a fac_b fac_c fac_d".split(" ").flatMap((k) => [0, 1, 2, 3, 4, 5].map((i) => `/factory/p/g_${k}${i}.jpg`)),
+    wh: [0, 1, 2, 3, 4, 5].map((i) => `/factory/p/g_wh_a${i}.jpg`),
+    bld: "brick_remodel kobi_new local_corner retail_mid medical office_mid".split(" ").flatMap((k) => [0, 1, 2, 3, 4, 5, 6, 7].map((i) => `/building/p/b_${k}${i}.jpg`)),
   };
   const hashN = (t) => { let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
   function sampleOf(m) {
     const k = /창고/.test(m.kind) ? "wh" : /공장/.test(m.kind) ? "fac" : /상가|근생|근린시설|빌딩|건물|다가구|아파트/.test(m.kind) ? "bld" : null;
     return k ? SAMP[k][hashN(m.id) % SAMP[k].length] : null;
   }
-  const illHTML = (m) => `<div class="ill">${kindIcon(m)}<small>사진 준비 중</small></div>`;
-  const sampHTML = (m, s) => `<img loading="lazy" src="${s}" alt="${esc(m.kind)} 예시 사진(실제 매물 아님)" onerror="this.outerHTML='<div class=&quot;ill&quot;><small>사진 준비 중</small></div>'">`;
+  // ② 그 밖(주택·토지·경매 등): 카카오 위성사진으로 주변 모습(정확한 지번이 아니라 근처)
+  const illHTML = (m) => m.lat != null
+    ? `<div class="ill" data-sm="${m.lat},${m.lng}" style="position:relative;overflow:hidden">${kindIcon(m)}<small>위성사진(주변)</small></div>`
+    : `<div class="ill">${kindIcon(m)}<small>사진 준비 중</small></div>`;
+  const sampHTML = (m, src) => `<img loading="lazy" src="${src}" alt="${esc(m.kind)} 예시 사진(실제 매물 아님)" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ill',innerHTML:'<small>사진 준비 중</small>'}))">`;
+  const noPhoto = (m) => (sampleOf(m) ? sampHTML(m, sampleOf(m)) : illHTML(m));
+  function paintSM(el) {
+    if (el.dataset.done || !(window.kakao && kakao.maps && kakao.maps.StaticMap)) return;
+    el.dataset.done = "1"; const [la, ln] = el.dataset.sm.split(",").map(Number);
+    const box = document.createElement("div"); box.style.cssText = "position:absolute;inset:0"; el.prepend(box);
+    try {
+      new kakao.maps.StaticMap(box, { center: new kakao.maps.LatLng(la, ln), level: 4, mapTypeId: kakao.maps.MapTypeId.SKYVIEW });
+      const t = el.querySelector("small"); if (t) t.style.cssText = "position:absolute;left:6px;bottom:6px;z-index:2;background:rgba(0,0,0,.55);color:#fff;padding:2px 6px;border-radius:4px;font-size:11px";
+      const ic = el.querySelector("svg"); if (ic) ic.style.display = "none";
+    } catch (e) { box.remove(); }
+  }
+  const smObs = ("IntersectionObserver" in window) ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { smObs.unobserve(e.target); paintSM(e.target); } }), { rootMargin: "300px" }) : null;
+  const fillSM = () => document.querySelectorAll("[data-sm]:not([data-done])").forEach((el) => (smObs ? smObs.observe(el) : paintSM(el)));
+  let smT = 0; new MutationObserver(() => { clearTimeout(smT); smT = setTimeout(fillSM, 120); }).observe(document.documentElement, { childList: true, subtree: true });
   function photoHTML(m) {
     const b = [];
     if (m.pick) b.push('<span class="bd pick">추천</span>');
@@ -83,9 +103,9 @@
       if (m.sale != null) b.push('<span class="bd sale">매매</span>');
       if (m.rent != null) b.push('<span class="bd rent">임대</span>'); }
     if ((m.tags || []).includes("지상권")) b.push('<span class="bd jsg">지상권</span>');
-    if (m.yt) b.push('<span class="bd vid">▶ 영상</span>');
-    const img = m.yt ? `<img loading="lazy" src="https://i.ytimg.com/vi/${m.yt}/hqdefault.jpg" alt="${esc(place(m))} ${esc(m.kind)} 영상 장면">`
-      : sampleOf(m) ? sampHTML(m, sampleOf(m)) : illHTML(m);
+    if (vok(m, "yt") || vok(m, "sh")) b.push('<span class="bd vid">▶ 영상</span>');
+    const img = vok(m, "yt") ? `<img loading="lazy" src="https://i.ytimg.com/vi/${m.yt}/hqdefault.jpg" alt="${esc(place(m))} ${esc(m.kind)} 영상 장면">`
+      : m.th ? thImg(m) : noPhoto(m);
     return `<div class="photo">${img}<div class="badges">${b.join("")}</div></div>`;
   }
   const cardHTML = (m) => `${photoHTML(m)}<div class="cbody"><div class="cprice num">${priceHTML(m)}</div>
@@ -290,14 +310,15 @@
     if (facts.length < 3) facts.push([m.sigun, "시·군"]);
     if (facts.length < 3) facts.push([m.kind.replace(/\(.*\)/, ""), "종류"]);
     const rows = [["매물번호", m.id], ["종류", m.kind], ["소재지", `${m.sido} ${place(m)}`]];
-    if (m.low != null) rows.push(["사건번호", m.case], ["법원", m.court], ["감정가", won(m.appr)], ["최저가", won(m.low)], ["유찰", m.fails ? m.fails + "회" : null], ["입찰일", m.bid]);
+    if (m.low != null) { rows.push(["사건번호", m.case], ["법원", m.court], ["감정가", won(m.appr)], ["최저가", won(m.low)], ["유찰", m.fails ? m.fails + "회" : null], ["입찰일", m.bid]);
+      [["판정", m.judge], ["사용승인", m.year], ["구조", m.struct], ["매각범위", m.scope], ["주의사항", m.risk]].forEach((r) => { if (r[1]) rows.push(r); }); }
     else { if (m.sale != null) rows.push(["매매가", won(m.sale)]); if (m.rent != null) rows.push(["보증금 / 월세", `${won(m.dep || 0)} / ${won(m.rent)}`]); }
     rows.push(["대지 면적", m.land != null ? `${py(m.land)} (${sqm(m.land)})` : null], ["건물 면적", m.bld != null ? `${py(m.bld)} (${sqm(m.bld)})` : null]);
     if (m.floors) rows.push(["층수", m.floors]);
     if (SITE === "factory") rows.push(["전력", null], ["층고", null], ["호이스트", null], ["진입로", null]);
     if (SITE === "land") rows.push(["지목", null], ["용도지역", null], ["도로", null]);
-    const hero = m.yt ? `<img src="https://i.ytimg.com/vi/${m.yt}/hqdefault.jpg" alt="${esc(place(m))} 영상 장면"><a class="play" href="https://youtu.be/${m.yt}" target="_blank" rel="noopener">▶ 영상으로 보기</a>`
-      : `<div class="photo" style="aspect-ratio:auto;height:100%">${sampleOf(m) ? sampHTML(m, sampleOf(m)) : illHTML(m)}</div>`;
+    const hero = vok(m, "yt") ? `<img src="https://i.ytimg.com/vi/${m.yt}/hqdefault.jpg" alt="${esc(place(m))} 영상 장면"><a class="play" href="https://youtu.be/${m.yt}" target="_blank" rel="noopener">▶ 영상으로 보기</a>`
+      : m.th ? thImg(m) : `<div class="photo" style="aspect-ratio:auto;height:100%">${noPhoto(m)}</div>`;
     D.innerHTML = `
       <div class="d-top"><button type="button" id="dback" aria-label="뒤로">←</button><button type="button" id="dshare" aria-label="링크 복사">⤴</button></div>
       <div class="d-hero">${hero}</div>
@@ -308,11 +329,12 @@
         <div class="facts">${facts.slice(0, 3).map((f) => `<div class="fact"><b class="num">${esc(f[0])}</b><span>${f[1]}</span></div>`).join("")}</div>
         ${m.feats ? `<div class="feats" style="margin-top:14px">${m.feats.map((f) => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
         ${(m.tags || []).includes("지상권") ? '<div class="warn">지상권 매물입니다. 토지는 포함되지 않습니다.</div>' : ""}
-        ${m.low != null ? '<div class="warn">경매 물건입니다. 권리 분석·입찰 대리는 전화로 상담해 드립니다.</div>' : ""}
+        ${m.low != null ? '<div class="warn">경매 물건입니다. 권리 확인과 입찰 준비는 전화로 상담해 드립니다.</div>' : ""}
         <div class="say">전화 주실 때 <b>“${esc(m.id)}” 보고 연락드려요</b>라고 말씀해 주세요.</div>
       </section>
       <section class="d-sec"><h2>상세 정보</h2><dl class="rows">${rows.map((r) => `<div><dt>${r[0]}</dt><dd class="${r[1] == null ? "wait" : ""}">${r[1] == null ? "문의 시 안내" : esc(r[1])}</dd></div>`).join("")}</dl></section>
-      ${m.yt ? `<section class="d-sec"><h2>영상</h2><div class="share"><a class="btn" style="background:#dc2626;color:#fff;flex:1" href="https://youtu.be/${m.yt}" target="_blank" rel="noopener">▶ 본편 보기</a>${m.sh ? `<a class="btn" style="background:#111;color:#fff;flex:1" href="https://youtube.com/shorts/${m.sh}" target="_blank" rel="noopener">▶ 쇼츠</a>` : ""}</div></section>` : ""}
+      ${m.note || m.link ? `<section class="d-sec"><h2>물건 분석</h2>${m.note ? `<p style="line-height:1.65;margin:0 0 12px">${esc(m.note).split(" / ").join("<br>")}</p>` : ""}${m.link ? `<a class="btn" style="display:block;text-align:center;background:#1f2937;color:#fff;padding:12px;border-radius:10px;text-decoration:none" href="${esc(m.link)}" target="_blank" rel="noopener">경매 원문(감정서·현장 사진) 보기</a>` : ""}</section>` : ""}
+      ${vok(m, "yt") ? `<section class="d-sec"><h2>영상</h2><div class="share"><a class="btn" style="background:#dc2626;color:#fff;flex:1" href="https://youtu.be/${m.yt}" target="_blank" rel="noopener">▶ 본편 보기</a>${vok(m, "sh") ? `<a class="btn" style="background:#111;color:#fff;flex:1" href="https://youtube.com/shorts/${m.sh}" target="_blank" rel="noopener">▶ 쇼츠</a>` : ""}</div></section>` : ""}
       <section class="d-sec"><h2>위치 <span class="ckind">(읍·면 근처, 정확한 위치는 상담 시 안내)</span></h2><div class="minimap" id="minimap"></div></section>
       <section class="d-sec"><div class="share"><button type="button" id="dcopy">링크 복사</button><a class="btn kakao" style="flex:1" href="${CFG.kakaoChannel}" target="_blank" rel="noopener">카톡 문의</a></div>
         <p class="note">매물 정보는 등록 당시 기준이며 현장 사정에 따라 달라질 수 있습니다.</p></section>`;
