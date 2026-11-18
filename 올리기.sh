@@ -14,6 +14,8 @@ copy /c/Users/smfqh/펜션매매/사이트 pension
 find pension/p -name '*_h[3-9].jpg' -delete
 copy /c/Users/smfqh/공장매매/사이트 factory
 copy /c/Users/smfqh/빌딩매매/사이트 building
+# 공개본에만 카카오 지도 넣기(키는 map/assets/config.js, 원본은 그대로)
+python -I /c/Users/smfqh/지도자료/도구/카카오적용.py factory/index.html pension/index.html building/index.html
 # 공개 전 점검: 휴대폰 번호가 들어가면 멈춤
 if grep -rlE "01[016789]-?[0-9]{3,4}-?[0-9]{4}" --include=*.html --include=*.json . ; then echo "휴대폰 번호 발견 — 올리지 않음"; exit 1; fi
 git add -A
