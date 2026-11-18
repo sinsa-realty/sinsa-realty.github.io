@@ -30,3 +30,5 @@ git add -A
 git commit -q -m "${1:-사이트 갱신}" || { echo "바뀐 것 없음"; exit 0; }
 git push -q
 echo "올림 완료"
+# 주소별 홈페이지(gjmap.kr·pension24.kr·bdmap.kr·gm24.kr·chonjip.kr)도 같은 내용으로 갱신
+python -I /c/Users/smfqh/지도자료/도구/도메인사이트만들기.py
