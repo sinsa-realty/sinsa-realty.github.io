@@ -174,7 +174,7 @@
       [`이번에도 유찰되면 얼마가 되나요?`, `보통 30%씩 내려가 다음 최저가는 약 ${won(r[0])}이 됩니다(법원에 따라 20%).`]];
     if (pyv) faq.push([`평당 가격은 얼마인가요?`, `${m.land ? "토지" : "건물"} ${py(pyv)} 기준 최저가는 1평당 약 ${won(Math.round(m.low / pyv))}${m.appr ? `, 감정가는 약 ${won(Math.round(m.appr / pyv))}` : ""}입니다.`]);
     return `
-      <section class="d-sec"><h2>한눈에 보기</h2><div class="ap-card">
+      <section class="d-sec"><h2>한눈에 보기</h2>${m.chg ? `<div class="warn">법원에서 매각기일이 변경되어 새 날짜가 아직 정해지지 않았습니다. 아래 입찰일은 변경 전 날짜입니다.</div>` : ""}<div class="ap-card">
         <div><b class="num">${d == null ? "-" : d > 0 ? "D-" + d : d === 0 ? "오늘" : "지남"}</b><span>입찰일 ${m.bid ? m.bid.slice(5).replace("-", "/") : "-"}</span></div>
         <div><b class="num">${won(dep)}</b><span>입찰보증금 10%</span></div>
         <div><b class="num">${won(r[0])}</b><span>유찰되면 다음 최저가(예상)</span></div>
