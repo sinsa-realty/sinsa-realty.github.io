@@ -18,6 +18,8 @@ copy /c/Users/smfqh/빌딩매매/사이트 building
 for d in factory pension building; do [ -d ../추가사진/$d/p ] && cp -rn ../추가사진/$d/p/. $d/p/ ; done
 # 종합지도(map/) 화면: 예시 사진·위성사진·경매 상세가 빠져 있으면 다시 넣음(다른 세션이 app.js를 통째로 바꿔도 유지)
 python -I /c/Users/smfqh/지도자료/도구/종합지도_사진상세적용.py map/assets/app.js
+python -I /c/Users/smfqh/지도자료/도구/경매기능적용.py map/assets/app.js
+JB=$(ls -t /c/Users/smfqh/깃허브/경매장부_*.csv 2>/dev/null | head -1); [ -n "$JB" ] && python -I /c/Users/smfqh/지도자료/도구/경매보강.py "$JB"
 # 공개본에만 카카오 지도 넣기(키는 map/assets/config.js, 원본은 그대로)
 python -I /c/Users/smfqh/지도자료/도구/카카오적용.py factory/index.html pension/index.html building/index.html
 # 공개 전 점검: 휴대폰 번호가 들어가면 멈춤

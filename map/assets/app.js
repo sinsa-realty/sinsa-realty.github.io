@@ -110,13 +110,98 @@
   }
   const cardHTML = (m) => `${photoHTML(m)}<div class="cbody"><div class="cprice num">${priceHTML(m)}</div>
     <div class="cmeta">${esc(place(m))}${m[R.areaKey] != null ? " · " + R.areaName + " " + py(m[R.areaKey]) : ""}</div>
-    <div class="ckind">${esc(m.kind)}${m.bid ? " · 입찰 " + m.bid.slice(5).replace("-", "/") : ""}</div></div>`;
+    <div class="ckind">${m.case ? esc(m.case) + " · " : ""}${esc(m.kind)}${m.bid ? " · 입찰 " + m.bid.slice(5).replace("-", "/") : ""}</div></div>`;
 
   /* ── 상태 ── */
-  const st = { seg: "전체", sido: "전체", price: null, area: null, sort: SITE === "auction" ? "bid" : "pick", sel: null, mtype: "map" };
+  const st = { q: "", fx: {}, seg: "전체", sido: "전체", price: null, area: null, sort: SITE === "auction" ? "bid" : "pick", sel: null, mtype: "map" };
   let items = [], MAP = null;
 
+  // ── 경매 기능 1단계 (Code 세션 2026-11-21) ──
+  (function () { const c = document.createElement("style"); c.textContent = `
+    .qrow{padding:6px 12px 0}.qrow input{width:100%;box-sizing:border-box;font-size:16px;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff;color:#111}
+    .ap-card{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:4px 0 10px}.ap-card div{background:#f5f7fa;border-radius:10px;padding:10px}
+    .ap-card b{display:block;font-size:17px}.ap-card span{font-size:12px;color:#667}
+    .ap-t{width:100%;border-collapse:collapse;font-size:14px}.ap-t td,.ap-t th{border-bottom:1px solid #e5e7eb;padding:7px 4px;text-align:left}.ap-t .fu{color:#94a3b8}
+    .ap-calc label{display:block;font-size:14px;margin:4px 0}.ap-calc input{width:100%;box-sizing:border-box;font-size:18px;padding:10px;border:1.5px solid #cbd5e1;border-radius:10px}
+    .ap-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ap-links a{display:block;text-align:center;padding:11px 6px;border-radius:10px;background:#eef2f7;color:#111;text-decoration:none;font-size:14px}
+    .ap-rep{display:grid;gap:8px}.ap-rep div{border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px}.ap-rep b{font-size:15px}.ap-rep em{float:right;font-style:normal;color:#0b5cad;font-weight:700}
+    .ap-rep p{margin:4px 0 0;font-size:13px;color:#556}.ap-go{display:flex;gap:8px;margin-top:10px}.ap-go a{flex:1;text-align:center;padding:12px 4px;border-radius:10px;text-decoration:none;font-weight:700;color:#fff;background:#1f2937}
+    .ap-faq details{border-bottom:1px solid #e5e7eb;padding:9px 0}.ap-faq summary{font-weight:700;cursor:pointer}.ap-faq p{margin:6px 0 0;color:#334}
+    .ap-near a{display:block;padding:9px 0;border-bottom:1px solid #eef;color:inherit;text-decoration:none;font-size:14px}.ap-near small{color:#667}
+    @media (prefers-color-scheme:dark){.qrow input{background:#1e1e1e;color:#eee;border-color:#444}.ap-card div,.ap-links a{background:#22262c;color:#eee}.ap-rep div{border-color:#333}}`; document.head.append(c); })();
+  const pct = (m) => { const r = parseFloat(String(m.rate || "").replace(/[^\d.]/g, "")); return isNaN(r) ? (m.appr ? m.low / m.appr * 100 : 999) : r; };
+  const normQ = (t) => String(t || "").replace(/\s+/g, "").replace(/타경/g, "타경").toLowerCase();
+  const dday = (d) => { if (!d) return null; const t = new Date(d + "T00:00:00"), n = new Date(); n.setHours(0, 0, 0, 0); return Math.round((t - n) / 864e5); };
+  const FX = { fail: [["전체"], ["1회 이상", 1], ["2회 이상", 2], ["3회 이상", 3]], pct: [["전체"], ["70% 이하", 70], ["50% 이하", 50], ["35% 이하", 35]],
+    day: [["전체"], ["7일 안", 7], ["14일 안", 14], ["30일 안", 30]], no: [["빼지 않음"], ["지분 빼기", "지분"], ["주의사항 있는 물건 빼기", "risk"]] };
+  function auxPass(m) {
+    if (st.q) { const q = normQ(st.q); const hay = normQ([m.case, m.id, m.sido, m.sigun, m.gu, m.dong, m.kind, m.court].join(" ")); if (!hay.includes(q)) return false; }
+    const f = st.fx;
+    if (f.fail && (m.fails || 0) < f.fail) return false;
+    if (f.pct && !(pct(m) <= f.pct)) return false;
+    if (f.day) { const d = dday(m.bid); if (d == null || d < 0 || d > f.day) return false; }
+    if (f.no === "지분" && /지분/.test((m.scope || "") + (m.risk || "") + (m.kind || ""))) return false;
+    if (f.no === "risk" && m.risk) return false;
+    return true;
+  }
+  function moreDlg(box) {
+    const grp = (k, t) => `<h3>${t}</h3><div class="opts">${FX[k].map((o, i) => `<button data-k="${k}" data-i="${i}" aria-pressed="${(st.fx[k] ?? null) === (o[1] ?? null)}">${o[0]}</button>`).join("")}</div>`;
+    box.innerHTML = grp("fail", "유찰 횟수") + grp("pct", "감정가 대비 최저가") + grp("day", "입찰일") + grp("no", "빼고 보기") +
+      `<div class="opts" style="margin-top:14px"><button id="fxclear">조건 지우기</button><button id="fxok" style="background:var(--brand);color:#fff">적용</button></div>`;
+    box.querySelectorAll("[data-k]").forEach((b) => b.onclick = () => { const o = FX[b.dataset.k][+b.dataset.i]; if (o[1] == null) delete st.fx[b.dataset.k]; else st.fx[b.dataset.k] = o[1];
+      box.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach((x) => x.setAttribute("aria-pressed", x === b)); });
+    $("#fxclear").onclick = () => { st.fx = {}; closeDlg(); refresh(true); };
+    $("#fxok").onclick = () => { closeDlg(); refresh(true); };
+  }
+  const TAXR = (m, v) => /주택|아파트|빌라|다가구|오피스텔/.test(m.kind) && !/상가주택|오피스텔/.test(m.kind) ? (v <= 60000 ? 1.1 : v <= 90000 ? 2.2 : 3.5) : /^전$|^답$|농지|과수원/.test(m.kind) ? 3.4 : 4.6;
+  function calcHTML(m, v) {
+    const dep = Math.round(m.low * 0.1), tax = Math.round(v * TAXR(m, v) / 100);
+    const a = m.appr || v, lo = Math.round(Math.min(a * 0.6, v * 0.7)), hi = Math.round(Math.min(a * 0.7, v * 0.8));
+    return `<table class="ap-t"><tr><td>입찰보증금(최저가의 10%)</td><td class="num">${won(dep)}</td></tr><tr><td>나머지 잔금</td><td class="num">${won(Math.max(v - dep, 0))}</td></tr>
+      <tr><td>취득세 등 약 ${TAXR(m, v)}%</td><td class="num">${won(tax)}</td></tr><tr><td>예상 대출 범위(참고)</td><td class="num">${won(lo)} ~ ${won(hi)}</td></tr>
+      <tr><th>합계(입찰가+세금)</th><th class="num">${won(v + tax)}</th></tr><tr><th>대출 받으면 내 돈</th><th class="num">약 ${won(Math.max(v + tax - hi, 0))} ~ ${won(Math.max(v + tax - lo, 0))}</th></tr></table>
+      <p class="note">취득세는 주택 1채 기준·물건 종류별 대략값입니다. 대출은 소득·보유 주택 수·지역에 따라 달라 은행 상담이 필요합니다. 명도비·밀린 관리비는 빠져 있습니다.</p>`;
+  }
+  function bindCalc(m) { const i = $("#apbid"); if (!i) return; const go = () => { const v = Math.max(parseInt(i.value.replace(/[^\d]/g, "")) || m.low, 1); $("#apout").innerHTML = calcHTML(m, v); }; i.oninput = go; go(); }
+  function aucPlus(m) {
+    const d = dday(m.bid), dep = Math.round(m.low * 0.1), q = encodeURIComponent(`${m.sido} ${place(m)}`);
+    const dec = m.bid ? (() => { const t = new Date(m.bid + "T00:00:00"); t.setDate(t.getDate() + 7); return `${t.getMonth() + 1}/${t.getDate()}`; })() : "-";
+    let r = [], v = m.low; for (let i = 1; i <= 3; i++) { v = Math.round(v * 0.7); r.push(v); }
+    const pyv = m.land || m.bld; const ask = (t) => `sms:${PHONE.replace(/[^0-9]/g, "")}?body=${encodeURIComponent(`[${m.case || m.id}] ${t} 신청합니다`)}`;
+    const near = items.filter((x) => x !== m && x.low != null && x.sigun === m.sigun).slice(0, 6);
+    const faq = [[`입찰보증금은 얼마인가요?`, `최저가 ${won(m.low)}의 10%인 ${won(dep)}입니다. 입찰 날 현금이나 자기앞수표(한 장)로 냅니다.`],
+      [`언제 입찰하나요?`, m.bid ? `${m.bid.replace(/-/g, ".")} 오전 10시 무렵${m.court ? ", " + m.court : ""} 경매법정입니다. 기일은 바뀔 수 있어 전날 법원경매정보에서 다시 확인하세요.` : `입찰일은 문의해 주세요.`],
+      [`이번에도 유찰되면 얼마가 되나요?`, `보통 30%씩 내려가 다음 최저가는 약 ${won(r[0])}이 됩니다(법원에 따라 20%).`]];
+    if (pyv) faq.push([`평당 가격은 얼마인가요?`, `${m.land ? "토지" : "건물"} ${py(pyv)} 기준 최저가는 1평당 약 ${won(Math.round(m.low / pyv))}${m.appr ? `, 감정가는 약 ${won(Math.round(m.appr / pyv))}` : ""}입니다.`]);
+    return `
+      <section class="d-sec"><h2>한눈에 보기</h2><div class="ap-card">
+        <div><b class="num">${d == null ? "-" : d > 0 ? "D-" + d : d === 0 ? "오늘" : "지남"}</b><span>입찰일 ${m.bid ? m.bid.slice(5).replace("-", "/") : "-"}</span></div>
+        <div><b class="num">${won(dep)}</b><span>입찰보증금 10%</span></div>
+        <div><b class="num">${won(r[0])}</b><span>유찰되면 다음 최저가(예상)</span></div>
+        <div><b class="num">${dec}</b><span>매각결정(낙찰 1주 뒤 예상)</span></div></div>
+        ${m.case ? `<p style="margin:0">사건번호 <b>${esc(m.case)}</b>${m.court ? " · " + esc(m.court) : ""} <button type="button" id="apcopy" style="margin-left:6px">복사</button></p>` : `<p class="note" style="margin:0">사건번호는 전화로 안내해 드립니다.</p>`}</section>
+      <section class="d-sec"><h2>회차별 최저가</h2><table class="ap-t"><tr><th>회차</th><th>최저가</th><th>감정가 대비</th></tr>
+        <tr><td><b>이번</b></td><td class="num"><b>${won(m.low)}</b></td><td>${m.appr ? Math.round(m.low / m.appr * 100) + "%" : esc(m.rate || "")}</td></tr>
+        ${r.map((x, i) => `<tr class="fu"><td>유찰 ${i + 1}번 더</td><td class="num">${won(x)}</td><td>${m.appr ? Math.round(x / m.appr * 100) + "%" : ""}</td></tr>`).join("")}</table>
+        <p class="note">옅은 줄은 계속 유찰될 때의 예상(30%씩 저감)입니다. 실제 금액·날짜는 법원 공고를 따릅니다.</p></section>
+      <section class="d-sec ap-calc"><h2>입찰가 계산기</h2><label for="apbid">내 입찰가 (만원)</label><input id="apbid" inputmode="numeric" value="${m.low}"><div id="apout" style="margin-top:10px"></div></section>
+      <section class="d-sec"><h2>법원 원문·확인처</h2><div class="ap-links">
+        <a href="https://www.courtauction.go.kr/" target="_blank" rel="noopener">법원경매정보 ↗<br><small>명세서·현황조사서</small></a>
+        <a href="https://www.iros.go.kr/" target="_blank" rel="noopener">인터넷등기소 ↗<br><small>등기부 열람</small></a>
+        <a href="https://www.eum.go.kr/" target="_blank" rel="noopener">토지이음 ↗<br><small>토지이용계획</small></a>
+        <a href="https://map.kakao.com/?q=${q}" target="_blank" rel="noopener">카카오맵 ↗<br><small>위치·로드뷰</small></a></div></section>
+      <section class="d-sec"><h2>보고서·대행 신청</h2><div class="ap-rep">
+        <div><b>기본 분석</b><em>무료</em><p>권리·임차인·예상 비용·입찰가 구간을 전화로 설명해 드립니다.</p></div>
+        <div><b>입찰 전 안전진단 보고서</b><em>상담 후 안내</em><p>등기부·명세서를 직접 확인해 인수 권리·입찰가 의견을 정리해 드립니다.</p></div>
+        <div><b>현장탐문 보고서</b><em>상담 후 안내</em><p>현장에 가서 점유자·건물 상태·진입로를 확인하고 사진과 함께 드립니다.</p></div>
+        <div><b>경매대행(매수신청대리)</b><em>상담 후 안내</em><p>법원 정식 등록 공인중개사가 입찰부터 잔금·명도까지 함께합니다.</p></div></div>
+        <div class="ap-go"><a href="${TEL}">전화 신청</a><a href="${ask("보고서")}" style="background:#0b5cad">문자 신청</a><a href="${CFG.kakaoChannel}" target="_blank" rel="noopener" style="background:#fee500;color:#111">카톡 신청</a></div>
+        <p class="note">보고서는 참고 자료이며, 입찰 여부와 금액은 본인이 정합니다.</p></section>
+      <section class="d-sec ap-faq"><h2>자주 묻는 질문</h2>${faq.map((f) => `<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join("")}</section>
+      ${near.length ? `<section class="d-sec ap-near"><h2>${esc(m.sigun)} 다른 경매 물건</h2>${near.map((x) => `<a href="#${x.idx}">${esc(x.kind)} · ${esc(x.dong)} <b class="num">${won(x.low)}</b> <small>${esc(x.rate || "")} · ${x.bid ? x.bid.slice(5).replace("-", "/") : ""}</small></a>`).join("")}</section>` : ""}`;
+  }
   function pass(m) {
+    if (!auxPass(m)) return false;
     const sg = R.segs.find((s) => s[0] === st.seg); if (sg && sg[1] && !sg[1](m)) return false;
     if (st.sido !== "전체" && m.sido !== st.sido) return false;
     if (st.price) { const v = st.seg === "임대" ? m.rent : (m.low ?? m.sale); if (v == null || v <= st.price[1] || v > st.price[2]) return false; }
@@ -126,7 +211,7 @@
   function sorted(list) {
     const k = (m) => st.seg === "임대" ? m.rent : (m.low ?? m.sale);
     const L = [...list];
-    if (st.sort === "low") L.sort((a, b) => (k(a) ?? 1e12) - (k(b) ?? 1e12));
+    if (st.sort === "rate") L.sort((a, b) => pct(a) - pct(b)); else if (st.sort === "fail") L.sort((a, b) => (b.fails || 0) - (a.fails || 0)); else if (st.sort === "low") L.sort((a, b) => (k(a) ?? 1e12) - (k(b) ?? 1e12));
     else if (st.sort === "big") L.sort((a, b) => (b[R.areaKey] ?? -1) - (a[R.areaKey] ?? -1));
     else if (st.sort === "bid") L.sort((a, b) => (a.bid || "9") < (b.bid || "9") ? -1 : 1);
     else L.sort((a, b) => (b.pick ? 2 : 0) + (b.yt ? 1 : 0) - (a.pick ? 2 : 0) - (a.yt ? 1 : 0) || (b.date || "") .localeCompare(a.date || ""));
@@ -143,6 +228,7 @@
         <button class="sitepick" id="sitepick" type="button" aria-haspopup="true"><i class="dot"></i><b>${esc(S.full)}</b><span class="caret">▼</span></button>
         <a class="tb-call" href="${TEL}">${callSVG.replace("<svg", '<svg width="18" height="18"')}<span class="ph num">${PHONE}</span><span class="ph-s">전화</span></a>
       </div>
+      ${SITE === "auction" ? '<div class="qrow"><input id="q" type="search" enterkeyhint="search" placeholder="사건번호·주소 검색 (예: 2025타경1827)" aria-label="사건번호·주소 검색"></div>' : ""}
       <div class="chips" id="chips"></div>
       <nav class="sitemenu" id="sitemenu" hidden></nav>
     </header>
@@ -167,6 +253,8 @@
   </nav>
   <div class="dlg" id="dlg" hidden><div class="dlg-in" id="dlgin"></div></div>`;
   document.documentElement.style.setProperty("--tbh", $("#top").offsetHeight + "px");
+  if ($("#q")) { let qt = 0; const qs = new URLSearchParams(location.search).get("q"); if (qs) { $("#q").value = qs; st.q = qs.trim(); }
+    $("#q").oninput = () => { clearTimeout(qt); qt = setTimeout(() => { st.q = $("#q").value.trim(); if (items.length) refresh(true); }, 250); }; }
 
   /* 사이트 메뉴 */
   $("#sitemenu").innerHTML = Object.entries(CFG.sites).map(([k, v]) =>
@@ -175,7 +263,7 @@
   document.addEventListener("click", (e) => { if (!e.target.closest("#sitepick,#sitemenu")) $("#sitemenu").hidden = true; });
 
   /* 조건 칩 */
-  const SORTS = SITE === "auction" ? [["bid", "입찰일 빠른순"], ["low", "최저가 낮은순"], ["big", "토지 넓은순"]] : [["pick", "추천순"], ["low", "가격 낮은순"], ["big", "면적 넓은순"]];
+  const SORTS = SITE === "auction" ? [["bid", "입찰일 빠른순"], ["low", "최저가 낮은순"], ["rate", "감정가 대비 낮은순"], ["fail", "유찰 많은순"], ["big", "토지 넓은순"]] : [["pick", "추천순"], ["low", "가격 낮은순"], ["big", "면적 넓은순"]];
   function chips() {
     const sidos = [...new Set(items.map((m) => m.sido))];
     const pr = st.seg === "임대" ? R.rent : R.price;
@@ -184,12 +272,14 @@
       `<button class="chip ${st.sido !== "전체" ? "on" : ""}" data-dlg="sido">지역 <span class="cv">${st.sido === "전체" ? "전국" : st.sido}</span></button>` +
       `<button class="chip ${st.price ? "on" : ""}" data-dlg="price">${st.seg === "임대" ? "월세" : SITE === "auction" ? "최저가" : "가격"} <span class="cv">${st.price ? st.price[0] : "전체"}</span></button>` +
       `<button class="chip ${st.area ? "on" : ""}" data-dlg="area">${R.areaName} <span class="cv">${st.area ? st.area[0] : "전체"}</span></button>` +
-      `<button class="chip" data-dlg="sort">${SORTS.find((s) => s[0] === st.sort)[1]}</button>`;
+      `<button class="chip" data-dlg="sort">${SORTS.find((s) => s[0] === st.sort)[1]}</button>` +
+      (SITE === "auction" ? `<button class="chip ${Object.keys(st.fx).length ? "on" : ""}" data-dlg="more">상세조건 <span class="cv">${Object.keys(st.fx).length ? Object.keys(st.fx).length + "개" : "없음"}</span></button>` : "");
     $("#chips").querySelectorAll("[data-seg]").forEach((b) => b.onclick = () => { st.seg = b.dataset.seg; st.price = null; refresh(true); });
     $("#chips").querySelectorAll("[data-dlg]").forEach((b) => b.onclick = () => openDlg(b.dataset.dlg, sidos, pr));
   }
   function openDlg(kind, sidos, pr) {
     const box = $("#dlgin"); let html = "";
+    if (kind === "more") { moreDlg(box); $("#dlg").hidden = false; return; }
     const btns = (list, cur, key) => `<div class="opts">${list.map((o, i) => `<button data-i="${i}" aria-pressed="${cur === o[0]}">${o[0]}</button>`).join("")}</div>`;
     if (kind === "sido") { const L = [["전국"], ...sidos.map((s) => [s + " (" + items.filter((m) => m.sido === s).length + ")", s])]; html = `<h3>지역</h3>` + btns(L, st.sido === "전체" ? "전국" : null);
       box.innerHTML = html; box.querySelectorAll("button").forEach((b) => b.onclick = () => { const o = L[+b.dataset.i]; st.sido = o[1] || "전체"; closeDlg(); refresh(true); }); }
@@ -335,10 +425,12 @@
       <section class="d-sec"><h2>상세 정보</h2><dl class="rows">${rows.map((r) => `<div><dt>${r[0]}</dt><dd class="${r[1] == null ? "wait" : ""}">${r[1] == null ? "문의 시 안내" : esc(r[1])}</dd></div>`).join("")}</dl></section>
       ${m.note || m.link ? `<section class="d-sec"><h2>물건 분석</h2>${m.note ? `<p style="line-height:1.65;margin:0 0 12px">${esc(m.note).split(" / ").join("<br>")}</p>` : ""}${m.link ? `<a class="btn" style="display:block;text-align:center;background:#1f2937;color:#fff;padding:12px;border-radius:10px;text-decoration:none" href="${esc(m.link)}" target="_blank" rel="noopener">경매 원문(감정서·현장 사진) 보기</a>` : ""}</section>` : ""}
       ${vok(m, "yt") ? `<section class="d-sec"><h2>영상</h2><div class="share"><a class="btn" style="background:#dc2626;color:#fff;flex:1" href="https://youtu.be/${m.yt}" target="_blank" rel="noopener">▶ 본편 보기</a>${vok(m, "sh") ? `<a class="btn" style="background:#111;color:#fff;flex:1" href="https://youtube.com/shorts/${m.sh}" target="_blank" rel="noopener">▶ 쇼츠</a>` : ""}</div></section>` : ""}
+      ${m.low != null ? aucPlus(m) : ""}
       <section class="d-sec"><h2>위치 <span class="ckind">(읍·면 근처, 정확한 위치는 상담 시 안내)</span></h2><div class="minimap" id="minimap"></div></section>
       <section class="d-sec"><div class="share"><button type="button" id="dcopy">링크 복사</button><a class="btn kakao" style="flex:1" href="${CFG.kakaoChannel}" target="_blank" rel="noopener">카톡 문의</a></div>
         <p class="note">매물 정보는 등록 당시 기준이며 현장 사정에 따라 달라질 수 있습니다.</p></section>`;
     D.hidden = false; D.scrollTop = 0;
+    if (m.low != null) { bindCalc(m); const cp = $("#apcopy"); if (cp) cp.onclick = () => navigator.clipboard && navigator.clipboard.writeText(m.case).then(() => toast("사건번호를 복사했습니다")); }
     $("#callbtn").href = TEL;
     $("#dback").onclick = () => { history.length > 1 ? history.back() : (location.hash = ""); };
     const copy = () => { const u = location.href; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast("링크를 복사했습니다. 카톡에 붙여 보내세요"), () => prompt("이 주소를 복사하세요", u)); };
